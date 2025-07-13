@@ -16,18 +16,14 @@ export class Program {
   private readonly _stack: ProgramStack;
   private readonly _executedNodes: Set<HandleType>;
   private readonly executionQueue: ExecutionQueue;
-  // private _currentNodeInExecutionContext: Array<SingleNode<NodeType> | undefined>;
-  private _nodeRunCounts: Map<HandleType, number>;
 
   constructor(data: ProgramOptions) {
     this._name = data.name;
     this._nodes = data.nodes;
     this._edges = data.edges;
-    // this._currentNodeInExecutionContext = [];
     this.executionQueue = new ExecutionQueue();
     this._executedNodes = new Set<HandleType>();
     this._stack = new ProgramStack();
-    this._nodeRunCounts = new Map<HandleType, number>();
   }
 
   get nodes() {
@@ -44,28 +40,19 @@ export class Program {
 
   runNode(node: SingleNode<NodeType> | undefined) {
     if (!node) {
-      // handle special case
       console.error("Node is undefined");
       return;
     }
 
     if (this._executedNodes.has(node.id)) {
-      // handle special case
       console.log("node already executed, skipping:", node);
       return;
     }
 
-    const runCount = this._nodeRunCounts.get(node.id);
-
-    // get node dependencies: list of nodes that this node depends on
-    // const dependencies = this._edges.filter((e) => node.id === e.target);
     for (const e of this._edges) {
       if (node.id === e.target) {
-        // current node depends on this node
         if (!this._executedNodes.has(e.source)) {
-          // if the dependency is not executed, don't execute the current node
           console.log(e.source, "dependency not executed, skipping current node:", node);
-          this._nodeRunCounts.set(node.id, (runCount ?? 0) + 1);
           return;
         }
       }
@@ -139,23 +126,5 @@ export class Program {
     }
 
     console.log("final", { stack: this._stack, execNodes: this._executedNodes });
-
-    // const startNodes = this._nodes.filter((node) => node.isStartNode);
-    // if (!startNodes.length) throw new Error("No start node found");
-    // this._currentNodeInExecutionContext = startNodes;
-    // for (let i = 0; i < this._currentNodeInExecutionContext.length; i++) {
-    //   while (this._currentNodeInExecutionContext[i]) {
-    //     console.log("trying to execute node", this._currentNodeInExecutionContext[i]);
-    //     const numRuns = this._nodeRunCounts.get(this._currentNodeInExecutionContext[i]?.id) ?? 0;
-    //     if (numRuns >= 1) {
-    //       const tm = setTimeout(() => {
-    //         this.runNode(this._currentNodeInExecutionContext[i], i);
-    //         clearTimeout(tm);
-    //       }, 200);
-    //       // console.error("Too many runs for a node", this._currentNodeInExecutionContext[i]);
-    //     }
-    //     this.runNode(this._currentNodeInExecutionContext[i], i);
-    //   }
-    // }
   }
 }

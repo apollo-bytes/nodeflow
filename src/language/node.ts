@@ -4,7 +4,6 @@ export class Node {
   private readonly _id: string;
   private readonly _type: NodeType;
   private readonly _data: any;
-  // private readonly _handles: SingleNode["handles"];
 
   constructor(nodeType: NodeType, data?: any) {
     const nodeTemplate = nodeTemplates.find((template) => template.type === nodeType);
@@ -15,10 +14,6 @@ export class Node {
     this._id = nodeId;
     this._type = nodeType;
     this._data = data;
-    // this._handles = {
-    //   inputs: Array.from({ length: nodeTemplate.numHandles.input }).fill(undefined) as Array<HandleType>,
-    //   outputs: Array.from({ length: nodeTemplate.numHandles.output }).fill(undefined) as Array<HandleType>,
-    // };
   }
 
   assignValue() {
@@ -36,8 +31,4 @@ export class Node {
   get data() {
     return this._data;
   }
-
-  // get handles() {
-  //   return this._handles;
-  // }
 }
