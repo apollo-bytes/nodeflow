@@ -1,0 +1,161 @@
+import { ProgramStack } from "@/structures/programStack";
+import type { NodeType } from "@/language/templateNodes";
+import { ExecutionQueue } from "@/structures/executionQueue";
+import type { HandleType, SingleEdge, SingleNode } from "@/language/schema";
+
+export type ProgramOptions = {
+  name: string;
+  nodes: SingleNode<NodeType>[];
+  edges: SingleEdge[];
+};
+
+export class Program {
+  private readonly _name: string;
+  private readonly _nodes: SingleNode<NodeType>[];
+  private readonly _edges: SingleEdge[];
+  private readonly _stack: ProgramStack;
+  private readonly _executedNodes: Set<HandleType>;
+  private readonly executionQueue: ExecutionQueue;
+  // private _currentNodeInExecutionContext: Array<SingleNode<NodeType> | undefined>;
+  private _nodeRunCounts: Map<HandleType, number>;
+
+  constructor(data: ProgramOptions) {
+    this._name = data.name;
+    this._nodes = data.nodes;
+    this._edges = data.edges;
+    // this._currentNodeInExecutionContext = [];
+    this.executionQueue = new ExecutionQueue();
+    this._executedNodes = new Set<HandleType>();
+    this._stack = new ProgramStack();
+    this._nodeRunCounts = new Map<HandleType, number>();
+  }
+
+  get nodes() {
+    return this._nodes;
+  }
+
+  get edges() {
+    return this._edges;
+  }
+
+  get name() {
+    return this._name;
+  }
+
+  runNode(node: SingleNode<NodeType> | undefined) {
+    if (!node) {
+      // handle special case
+      console.error("Node is undefined");
+      return;
+    }
+
+    if (this._executedNodes.has(node.id)) {
+      // handle special case
+      console.log("node already executed, skipping:", node);
+      return;
+    }
+
+    const runCount = this._nodeRunCounts.get(node.id);
+
+    // get node dependencies: list of nodes that this node depends on
+    // const dependencies = this._edges.filter((e) => node.id === e.target);
+    for (const e of this._edges) {
+      if (node.id === e.target) {
+        // current node depends on this node
+        if (!this._executedNodes.has(e.source)) {
+          // if the dependency is not executed, don't execute the current node
+          console.log(e.source, "dependency not executed, skipping current node:", node);
+          this._nodeRunCounts.set(node.id, (runCount ?? 0) + 1);
+          return;
+        }
+      }
+    }
+
+    console.log("executing node:", node);
+    this._executedNodes.add(node.id);
+
+    if (node.type === "var" || node.type === "const") {
+      this._stack.setVarInCurrentScope(node.id, node.data);
+    }
+
+    if (node.type === "box") {
+      this._stack.setVarInCurrentScope(node.id, node.data);
+      // TODO: merge the execution contexts in box, with whatever values it references
+    }
+
+    if (node.type === "sum") {
+      if (!Array.isArray(node.data)) {
+        console.error("sum node data must be an array", node);
+        return;
+      }
+
+      let sum = 0;
+      for (const attr of node.data) {
+        const val = this._stack.getVar(attr);
+        console.log("sum attribute", attr, "has value", val);
+        if (val) sum += val;
+      }
+
+      this._stack.setVarInCurrentScope(node.id, sum);
+    }
+
+    if (node.type === "branch") {
+      // TODO: handle branch
+    }
+
+    if (node.type === "loop") {
+      //
+    }
+
+    const edge = this._edges.find((e) => e.source === node.id);
+    if (!edge) return; // TODO: handle case
+
+    const nextNode = this._nodes.find((node) => node.id === edge.target);
+    console.log("next node", nextNode);
+
+    if (node.isEndNode) {
+      console.log("end node reached, setting execution context to undefined");
+    }
+  }
+
+  execute() {
+    const startNodes = this.nodes.filter((n) => n.isStartNode);
+    if (startNodes.length !== 1) throw new Error("There must be exactly one start node");
+
+    this.executionQueue.enqueue(startNodes[0]);
+
+    while (this.executionQueue.length > 0) {
+      const node = this.executionQueue.dequeue();
+      if (!node) continue;
+
+      this.runNode(node);
+
+      for (const e of this._edges) {
+        if (e.source === node.id) {
+          const nextNode = this._nodes.find((n) => n.id === e.target);
+          if (nextNode) this.executionQueue.enqueue(nextNode);
+        }
+      }
+    }
+
+    console.log("final", { stack: this._stack, execNodes: this._executedNodes });
+
+    // const startNodes = this._nodes.filter((node) => node.isStartNode);
+    // if (!startNodes.length) throw new Error("No start node found");
+    // this._currentNodeInExecutionContext = startNodes;
+    // for (let i = 0; i < this._currentNodeInExecutionContext.length; i++) {
+    //   while (this._currentNodeInExecutionContext[i]) {
+    //     console.log("trying to execute node", this._currentNodeInExecutionContext[i]);
+    //     const numRuns = this._nodeRunCounts.get(this._currentNodeInExecutionContext[i]?.id) ?? 0;
+    //     if (numRuns >= 1) {
+    //       const tm = setTimeout(() => {
+    //         this.runNode(this._currentNodeInExecutionContext[i], i);
+    //         clearTimeout(tm);
+    //       }, 200);
+    //       // console.error("Too many runs for a node", this._currentNodeInExecutionContext[i]);
+    //     }
+    //     this.runNode(this._currentNodeInExecutionContext[i], i);
+    //   }
+    // }
+  }
+}
